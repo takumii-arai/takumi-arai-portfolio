@@ -462,6 +462,19 @@ body .cap-tools{color:#9a9a9a}
   .works-toolbar.is-floating .filters{padding-right:28px}
   .works-toolbar.is-floating .filter{min-height:40px;padding:8px 13px;font-size:12px}
 }
+@keyframes toolbar-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes toolbar-out{from{opacity:1;transform:none}to{opacity:0;transform:translateY(14px)}}
+@media(max-width:900px){
+  .works-toolbar.is-floating{animation:toolbar-in .45s cubic-bezier(.33,0,.2,1) both}
+  .works-toolbar.is-floating.is-leaving{animation:toolbar-out .25s ease-in both}
+  .motion-paused .works-toolbar.is-floating,.motion-paused .works-toolbar.is-floating.is-leaving{animation:none}
+}
+@media(prefers-reduced-motion:reduce){.works-toolbar.is-floating,.works-toolbar.is-floating.is-leaving{animation:none}}
+.case-body .case-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;border-top:0;padding-top:0}
+.case-body .case-links a{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:9px 14px 9px 16px;border:1px solid var(--line);border-radius:999px;font-size:12px;line-height:1.4;background:#fff;transition:border-color .2s,color .2s,background .2s}
+.case-body .case-links a svg{width:12px;height:12px;flex:none}
+.case-body .case-links a:hover,.case-body .case-links a:focus-visible{border-color:var(--blue);color:var(--blue)}
+@media(pointer:coarse){.case-body .case-links a{min-height:44px}}
 
 </style>
 
@@ -558,7 +571,7 @@ try{if(!location.hash&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
     }
     function linksHTML(p){
       const links=(p.url?[[p.urlLabel||'公開サイトを見る',p.url]]:[]).concat(p.links||[]);
-      return links.length?'<div class="case-external">'+links.map(([label,url])=>'<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+escapeHTML(label)+' '+icons.arrow+'</a>').join('')+'</div>':'';
+      return links.length?'<div class="case-external case-links" aria-label="関連リンク">'+links.map(([label,url])=>'<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+escapeHTML(label)+' '+icons.arrow+'</a>').join('')+'</div>':'';
     }
     function visibleKeys(){const v=[...document.querySelectorAll('.work-card:not([hidden]) [data-project],.additional-work-card:not([hidden]) [data-project]')].map(b=>b.dataset.project);return [...new Set(v)];}
     let openedBy='push',prevHash='';
@@ -572,13 +585,12 @@ try{if(!location.hash&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
       const idx=list.indexOf(id);
       document.getElementById('case-number').textContent='PROJECT '+String(idx+1).padStart(2,'0')+' / '+String(list.length).padStart(2,'0');
       const facts=[['期間',p.period],['役割',p.role],['担当範囲',p.scope],['制作体制',p.team],['ツール',p.tools]].filter(([,value])=>value);
-      caseBody.innerHTML='<p class="case-type">'+escapeHTML(p.type)+'</p><h2 id="case-title" tabindex="-1">'+escapeHTML(p.title)+'</h2><p class="case-client">'+escapeHTML(p.client)+'</p>'
+      caseBody.innerHTML='<p class="case-type">'+escapeHTML(p.type)+'</p><h2 id="case-title" tabindex="-1">'+escapeHTML(p.title)+'</h2><p class="case-client">'+escapeHTML(p.client)+'</p>'+linksHTML(p)
         +mediaHTML(p)
         +(p.lead?'<p class="case-lead">'+escapeHTML(p.lead)+'</p>':'')+statsHTML(p)
         +(facts.length?'<dl class="case-facts">'+facts.map(([name,value])=>'<div><dt>'+escapeHTML(name)+'</dt><dd>'+escapeHTML(value)+'</dd></div>').join('')+'</dl>':'')
         +(p.sections||[]).map(([title,text])=>'<section class="case-section"><h3>'+escapeHTML(title)+'</h3><div>'+paragraph(text)+'</div></section>').join('')
         +(p.outcome?'<div class="case-outcome"><h3>結果・現在の状態</h3><p>'+escapeHTML(p.outcome)+'</p></div>':'')
-        +linksHTML(p)
         +(p.note?'<p class="case-note">'+escapeHTML(p.note)+'</p>':'')
         +'<div class="case-navigation"><button type="button" data-case-nav="'+list[(idx-1+list.length)%list.length]+'">'+icons.prev+' 前の実績</button><button type="button" data-case-nav="'+list[(idx+1)%list.length]+'">次の実績 '+icons.next+'</button></div>';
       if(!dialog.open){dialog.showModal();document.body.classList.add('locked');}
@@ -774,11 +786,21 @@ try{if(!location.hash&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
       if(bar&&works){
         const spacer=document.createElement('div');spacer.className='works-toolbar-spacer';spacer.setAttribute('aria-hidden','true');bar.before(spacer);
         let tick=false;
+        let leaveTimer=0;
+        const settle=on=>{spacer.style.height=on?bar.offsetHeight+'px':'';bar.classList.toggle('is-floating',on);works.classList.toggle('has-floating-toolbar',on);};
         const place=()=>{tick=false;
           const on=mq.matches&&spacer.getBoundingClientRect().top<70&&works.getBoundingClientRect().bottom>window.innerHeight*.55;
-          if(on===bar.classList.contains('is-floating'))return;
-          spacer.style.height=on?bar.offsetHeight+'px':'';
-          bar.classList.toggle('is-floating',on);works.classList.toggle('has-floating-toolbar',on);};
+          const floating=bar.classList.contains('is-floating'),leaving=bar.classList.contains('is-leaving');
+          if(on){ // 浮かせる（出現はCSSのフェード）。消えかけの途中なら取り消す
+            if(leaving){clearTimeout(leaveTimer);bar.classList.remove('is-leaving');}
+            if(!floating)settle(true);
+            return;}
+          if(!floating||leaving)return;
+          // フェードで消えてから元の位置に戻す（動きを止めている場合はすぐ戻す）
+          const still=document.body.classList.contains('motion-paused')||window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if(still||!mq.matches){settle(false);return;}
+          bar.classList.add('is-leaving');
+          leaveTimer=setTimeout(()=>{bar.classList.remove('is-leaving');settle(false);},250);};
         const req=()=>{if(!tick){tick=true;requestAnimationFrame(place);}};
         window.addEventListener('scroll',req,{passive:true});window.addEventListener('resize',req);mq.addEventListener('change',req);place();
         // 下に浮いている間に絞り込んだら、一覧の先頭へ移動して結果が見えるようにする
