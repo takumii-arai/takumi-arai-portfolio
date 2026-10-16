@@ -789,7 +789,10 @@ try{if(!location.hash&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
         let leaveTimer=0;
         const settle=on=>{spacer.style.height=on?bar.offsetHeight+'px':'';bar.classList.toggle('is-floating',on);works.classList.toggle('has-floating-toolbar',on);};
         const place=()=>{tick=false;
-          const on=mq.matches&&spacer.getBoundingClientRect().top<70&&works.getBoundingClientRect().bottom>window.innerHeight*.55;
+          // 元の位置のバーがヘッダーの裏に完全に隠れてから浮かせる（見えているうちに消えないように）
+          const headerBottom=Math.max(0,document.getElementById('sidebar').getBoundingClientRect().bottom);
+          const barBottomInFlow=spacer.getBoundingClientRect().top+(bar.classList.contains('is-floating')?parseFloat(spacer.style.height)||bar.offsetHeight:bar.offsetHeight);
+          const on=mq.matches&&barBottomInFlow<headerBottom&&works.getBoundingClientRect().bottom>window.innerHeight*.55;
           const floating=bar.classList.contains('is-floating'),leaving=bar.classList.contains('is-leaving');
           if(on){ // 浮かせる（出現はCSSのフェード）。消えかけの途中なら取り消す
             if(leaving){clearTimeout(leaveTimer);bar.classList.remove('is-leaving');}
