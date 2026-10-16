@@ -447,34 +447,28 @@ body .cap-tools{color:#9a9a9a}
   body.header-dim .sidebar:not(.menu-open){background:#ffffff8c;-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:0 8px 24px -18px #17171766}
 }
 
-.works-toolbar-spacer{display:none}
-@media(max-width:900px){
-  .works-toolbar{position:relative;top:auto}
-  .works-toolbar-spacer{display:block}
-  .works-toolbar.is-floating{position:fixed;left:14px;right:14px;top:auto;bottom:calc(14px + env(safe-area-inset-bottom));z-index:45;margin:0;padding:8px 10px 8px 12px;border:1px solid var(--line);border-radius:16px;background:#ffffffeb;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 12px 32px -14px #17171759}
-  .works.has-floating-toolbar{padding-bottom:96px}
-  body.locked .works-toolbar.is-floating{visibility:hidden}
-  .work-card,.additional-work-card{scroll-margin-top:110px;scroll-margin-bottom:96px}
 }
-@media(max-width:900px){
-  .works-toolbar.is-floating{overflow:hidden;padding:6px 6px 6px 8px}
-  .works-toolbar.is-floating .results-count{display:none}
-  .works-toolbar.is-floating .filters{padding-right:28px}
-  .works-toolbar.is-floating .filter{min-height:40px;padding:8px 13px;font-size:12px}
-}
-@keyframes toolbar-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
-@keyframes toolbar-out{from{opacity:1;transform:none}to{opacity:0;transform:translateY(14px)}}
-@media(max-width:900px){
-  .works-toolbar.is-floating{animation:toolbar-in .45s cubic-bezier(.33,0,.2,1) both}
-  .works-toolbar.is-floating.is-leaving{animation:toolbar-out .25s ease-in both}
-  .motion-paused .works-toolbar.is-floating,.motion-paused .works-toolbar.is-floating.is-leaving{animation:none}
-}
-@media(prefers-reduced-motion:reduce){.works-toolbar.is-floating,.works-toolbar.is-floating.is-leaving{animation:none}}
 .case-body .case-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;border-top:0;padding-top:0}
 .case-body .case-links a{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:9px 14px 9px 16px;border:1px solid var(--line);border-radius:999px;font-size:12px;line-height:1.4;background:#fff;transition:border-color .2s,color .2s,background .2s}
 .case-body .case-links a svg{width:12px;height:12px;flex:none}
 .case-body .case-links a:hover,.case-body .case-links a:focus-visible{border-color:var(--blue);color:var(--blue)}
 @media(pointer:coarse){.case-body .case-links a{min-height:44px}}
+
+.works-toolbar-float{display:none}
+@media(max-width:900px){
+  .works-toolbar{position:relative;top:auto}
+  .works{padding-bottom:96px}
+  .works-toolbar-float{display:flex;position:fixed;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:45;margin:0;padding:6px 6px 6px 8px;border:1px solid var(--line);border-radius:16px;background:#ffffffeb;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 12px 32px -14px #17171759;overflow:hidden;
+    opacity:0;transform:translateY(24px);visibility:hidden;pointer-events:none;transition:opacity .4s cubic-bezier(.33,0,.2,1),transform .45s cubic-bezier(.33,0,.2,1),visibility 0s linear .45s}
+  .works-toolbar-float.is-shown{opacity:1;transform:none;visibility:visible;pointer-events:auto;transition:opacity .4s cubic-bezier(.33,0,.2,1),transform .45s cubic-bezier(.33,0,.2,1),visibility 0s}
+  .works-toolbar-float .results-count,.works-toolbar-float .scroll-progress{display:none}
+  .works-toolbar-float .filters{padding-right:28px}
+  .works-toolbar-float .filter{min-height:40px;padding:8px 13px;font-size:12px}
+  body.locked .works-toolbar-float{visibility:hidden}
+  .motion-paused .works-toolbar-float{transition:none}
+  .work-card,.additional-work-card{scroll-margin-top:110px;scroll-margin-bottom:96px}
+}
+@media(prefers-reduced-motion:reduce){.works-toolbar-float{transition:none!important}}
 
 </style>
 
@@ -781,36 +775,27 @@ try{if(!location.hash&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
       window.addEventListener('scroll',()=>{if(!tick){tick=true;requestAnimationFrame(dim);}},{passive:true});
     }
     {
-      // 絞り込み（900px 以下）: 元の位置を通り過ぎ、実績一覧を見ている間は画面下に追従
-      const bar=document.querySelector('.works-toolbar'),works=document.getElementById('works'),mq=window.matchMedia('(max-width: 900px)');
+      // 絞り込み（900px 以下）: 元のバーは一覧の上に残したまま、ヘッダーの裏に隠れたら画面下に複製をフェードで重ねる
+      const bar=document.querySelector('.works-toolbar'),works=document.getElementById('works'),side=document.getElementById('sidebar'),mq=window.matchMedia('(max-width: 900px)');
       if(bar&&works){
-        const spacer=document.createElement('div');spacer.className='works-toolbar-spacer';spacer.setAttribute('aria-hidden','true');bar.before(spacer);
+        const float=bar.cloneNode(true);float.className='works-toolbar-float';
+        float.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+        float.querySelector('.filters')?.setAttribute('aria-label','実績を絞り込む（画面下）');
+        works.append(float);
+        const origButtons=[...bar.querySelectorAll('[data-filter]')],copyButtons=[...float.querySelectorAll('[data-filter]')];
+        const sync=()=>copyButtons.forEach((c,i)=>c.setAttribute('aria-pressed',origButtons[i].getAttribute('aria-pressed')));
+        copyButtons.forEach((c,i)=>c.addEventListener('click',()=>{
+          origButtons[i].click();sync();
+          // 絞り込んだら一覧の先頭へ（元のバーが見える位置）
+          const top=bar.getBoundingClientRect().top+window.scrollY-Math.max(0,side.getBoundingClientRect().bottom)-8;
+          window.scrollTo({top,behavior:document.body.classList.contains('motion-paused')?'auto':'smooth'});}));
+        origButtons.forEach(o=>o.addEventListener('click',sync));
         let tick=false;
-        let leaveTimer=0;
-        const settle=on=>{spacer.style.height=on?bar.offsetHeight+'px':'';bar.classList.toggle('is-floating',on);works.classList.toggle('has-floating-toolbar',on);};
         const place=()=>{tick=false;
-          // 元の位置のバーがヘッダーの裏に完全に隠れてから浮かせる（見えているうちに消えないように）
-          const headerBottom=Math.max(0,document.getElementById('sidebar').getBoundingClientRect().bottom);
-          const barBottomInFlow=spacer.getBoundingClientRect().top+(bar.classList.contains('is-floating')?parseFloat(spacer.style.height)||bar.offsetHeight:bar.offsetHeight);
-          const on=mq.matches&&barBottomInFlow<headerBottom&&works.getBoundingClientRect().bottom>window.innerHeight*.55;
-          const floating=bar.classList.contains('is-floating'),leaving=bar.classList.contains('is-leaving');
-          if(on){ // 浮かせる（出現はCSSのフェード）。消えかけの途中なら取り消す
-            if(leaving){clearTimeout(leaveTimer);bar.classList.remove('is-leaving');}
-            if(!floating)settle(true);
-            return;}
-          if(!floating||leaving)return;
-          // フェードで消えてから元の位置に戻す（動きを止めている場合はすぐ戻す）
-          const still=document.body.classList.contains('motion-paused')||window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          if(still||!mq.matches){settle(false);return;}
-          bar.classList.add('is-leaving');
-          leaveTimer=setTimeout(()=>{bar.classList.remove('is-leaving');settle(false);},250);};
+          const hidden=bar.getBoundingClientRect().bottom<Math.max(0,side.getBoundingClientRect().bottom);
+          float.classList.toggle('is-shown',mq.matches&&hidden&&works.getBoundingClientRect().bottom>window.innerHeight*.55);};
         const req=()=>{if(!tick){tick=true;requestAnimationFrame(place);}};
         window.addEventListener('scroll',req,{passive:true});window.addEventListener('resize',req);mq.addEventListener('change',req);place();
-        // 下に浮いている間に絞り込んだら、一覧の先頭へ移動して結果が見えるようにする
-        bar.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{
-          if(!bar.classList.contains('is-floating'))return;
-          const top=spacer.getBoundingClientRect().top+window.scrollY-90;
-          window.scrollTo({top,behavior:document.body.classList.contains('motion-paused')?'auto':'smooth'});}));
       }
     }
   </script>
