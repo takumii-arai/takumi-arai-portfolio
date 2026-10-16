@@ -434,6 +434,35 @@ body .cap-tools{color:#9a9a9a}
 .case-shot figcaption,.work-tag,.additional-scope,.case-image-note,.about-date,.works-footnote,.footer-bottom{font-size:10px!important}
 .proof-label,.proof-coverage span,.footer-bottom,.case-shot figcaption,.creative-meta .media-label,.additional-media,.additional-scope,.case-image-note,.case-note,.about-date,.works-footnote,.work-scope-label,.spot-stats dt,.case-stats dt,.back-top,.side-caption,.additional-heading p,.additional-heading small{color:#666!important}
 
+@media(max-width:650px){
+  .additional-grid .additional-work-open{grid-template-columns:22px minmax(0,1fr) 28px;grid-template-areas:"num thumb thumb" ". copy arrow";gap:14px 10px;padding:22px 0}
+  .additional-number{grid-area:num}
+  .additional-thumb{grid-area:thumb}
+  .additional-copy{grid-area:copy}
+  .additional-arrow{grid-area:arrow;align-self:start;margin-top:2px}
+}
+
+@media(max-width:900px){
+  .sidebar{transition:background-color .35s var(--ease),box-shadow .35s var(--ease)}
+  body.header-dim .sidebar:not(.menu-open){background:#ffffff8c;-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:0 8px 24px -18px #17171766}
+}
+
+.works-toolbar-spacer{display:none}
+@media(max-width:900px){
+  .works-toolbar{position:relative;top:auto}
+  .works-toolbar-spacer{display:block}
+  .works-toolbar.is-floating{position:fixed;left:14px;right:14px;top:auto;bottom:calc(14px + env(safe-area-inset-bottom));z-index:45;margin:0;padding:8px 10px 8px 12px;border:1px solid var(--line);border-radius:16px;background:#ffffffeb;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 12px 32px -14px #17171759}
+  .works.has-floating-toolbar{padding-bottom:96px}
+  body.locked .works-toolbar.is-floating{visibility:hidden}
+  .work-card,.additional-work-card{scroll-margin-top:110px;scroll-margin-bottom:96px}
+}
+@media(max-width:900px){
+  .works-toolbar.is-floating{overflow:hidden;padding:6px 6px 6px 8px}
+  .works-toolbar.is-floating .results-count{display:none}
+  .works-toolbar.is-floating .filters{padding-right:28px}
+  .works-toolbar.is-floating .filter{min-height:40px;padding:8px 13px;font-size:12px}
+}
+
 </style>
 
 <script>
@@ -727,6 +756,36 @@ try{if(!location.hash&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
         // 動画は再生してよいとき（モーションがオン・データセーバーでない）だけ読み込む
         const sync=()=>{const off=document.body.classList.contains('motion-paused')||saveData;heroVideo.hidden=off;if(off){heroVideo.pause();return;}if(!heroVideo.getAttribute('src')&&heroVideo.dataset.src)heroVideo.src=heroVideo.dataset.src;heroVideo.play().catch(()=>{});};
         new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});sync();
+      }
+    }
+      {
+      // ヘッダー（900px 以下）: 下へスクロール中は半透明、上へ戻すか先頭付近では元に戻す
+      const side=document.getElementById('sidebar');let lastY=window.scrollY,tick=false;
+      const dim=()=>{tick=false;const y=window.scrollY;
+        if(side.classList.contains('menu-open')||y<=80)document.body.classList.remove('header-dim');
+        else if(y>lastY+2)document.body.classList.add('header-dim');
+        else if(y<lastY-2)document.body.classList.remove('header-dim');
+        lastY=y;};
+      window.addEventListener('scroll',()=>{if(!tick){tick=true;requestAnimationFrame(dim);}},{passive:true});
+    }
+    {
+      // 絞り込み（900px 以下）: 元の位置を通り過ぎ、実績一覧を見ている間は画面下に追従
+      const bar=document.querySelector('.works-toolbar'),works=document.getElementById('works'),mq=window.matchMedia('(max-width: 900px)');
+      if(bar&&works){
+        const spacer=document.createElement('div');spacer.className='works-toolbar-spacer';spacer.setAttribute('aria-hidden','true');bar.before(spacer);
+        let tick=false;
+        const place=()=>{tick=false;
+          const on=mq.matches&&spacer.getBoundingClientRect().top<70&&works.getBoundingClientRect().bottom>window.innerHeight*.55;
+          if(on===bar.classList.contains('is-floating'))return;
+          spacer.style.height=on?bar.offsetHeight+'px':'';
+          bar.classList.toggle('is-floating',on);works.classList.toggle('has-floating-toolbar',on);};
+        const req=()=>{if(!tick){tick=true;requestAnimationFrame(place);}};
+        window.addEventListener('scroll',req,{passive:true});window.addEventListener('resize',req);mq.addEventListener('change',req);place();
+        // 下に浮いている間に絞り込んだら、一覧の先頭へ移動して結果が見えるようにする
+        bar.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{
+          if(!bar.classList.contains('is-floating'))return;
+          const top=spacer.getBoundingClientRect().top+window.scrollY-90;
+          window.scrollTo({top,behavior:document.body.classList.contains('motion-paused')?'auto':'smooth'});}));
       }
     }
   </script>
