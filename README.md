@@ -27,6 +27,6 @@ Web・動画・DTP のディレクター、新井拓海のポートフォリオ�
 
 ## このリポジトリについて
 
-サイトを公開するためのリポジトリです（HTML・CSS・JavaScript、GitHub Pages）。サイトの内容に関するご連絡は、GitHub のプロフィール（[@takumii-arai](https://github.com/takumii-arai)）からお願いします。
+サイトを公開するためのリポジトリです（HTML・CSS・JavaScript、GitHub Pages）。サイトの内容に関するご連絡は、このポートフォリオをお送りした際のご連絡先へお願いします。
 
 © 2026 Takumi Arai
